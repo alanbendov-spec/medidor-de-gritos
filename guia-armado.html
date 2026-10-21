@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Medidor de gritos — armado paso a paso</title>
+<style>
+:root{--ink:#17324d;--bg:#eaf7ff;--card:#fffdf6;--blue:#1b86c4;--green:#2fbf71;--yellow:#ffc928;--red:#ee4b4b;--board:#f3efe0;--line:#cfc7a6}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:"Trebuchet MS",Verdana,Arial,sans-serif;color:var(--ink);background:linear-gradient(160deg,#dff5ff,#fff6d6 55%,#ffe3e0);font-size:19px;line-height:1.5;min-height:100vh}
+header{padding:18px 16px 6px;text-align:center}
+header h1{margin:0;font-size:clamp(1.8rem,5vw,3rem);color:#126b9a;text-shadow:2px 2px #fff}
+header p{margin:4px 0 0;font-size:1rem}
+.top-tabs{display:flex;justify-content:center;gap:8px;margin-top:10px}
+.top-tab{border:2px solid #fff;border-radius:999px;background:#fff;color:var(--ink);font:bold .92rem inherit;padding:8px 15px;cursor:pointer;box-shadow:0 3px 0 #b9c9d4}
+.top-tab.primary{background:#e4f5ff;color:#0f5a82}
+#stepper{position:sticky;top:0;z-index:20;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:10px 12px;background:rgba(234,247,255,.94);backdrop-filter:blur(4px);border-bottom:3px solid #fff}
+#stepper button{border:0;cursor:pointer;width:34px;height:34px;border-radius:50%;font:bold 14px inherit;color:var(--ink);background:#fff;box-shadow:0 2px 0 rgba(23,50,77,.18)}
+#stepper button.done{background:var(--green);color:#fff}
+#stepper button.cur{background:var(--blue);color:#fff;transform:scale(1.18)}
+main{max-width:1320px;margin:0 auto;padding:14px 14px 40px}
+.layout{display:grid;grid-template-columns:1.6fr 1fr;gap:18px;align-items:start}
+.layout.solo{grid-template-columns:1fr;max-width:820px;margin:0 auto}
+.layout.solo #scenePanel{display:none}
+.card{background:var(--card);border:4px solid #fff;border-radius:22px;box-shadow:0 6px 0 rgba(23,50,77,.12);padding:20px 22px}
+#scenePanel{position:sticky;top:64px}
+#scenePanel svg{width:100%;height:auto;display:block;background:#f4fbff;border-radius:16px;border:2px dashed #8ccbe6}
+h2{margin:0 0 6px;font-size:clamp(1.5rem,3.6vw,2.1rem);color:#126b9a}
+h3{margin:18px 0 6px;font-size:1.15rem;color:#0f5a82}
+.goal{font-size:1.1rem;background:#e4f5ff;border-radius:12px;padding:10px 14px;margin:8px 0 12px}
+ol.how{padding-left:0;list-style:none;counter-reset:s;margin:10px 0}
+ol.how li{counter-increment:s;position:relative;padding:8px 10px 8px 48px;margin:8px 0;background:#f6fbff;border-radius:12px;cursor:pointer;transition:.2s}
+ol.how li::before{content:counter(s);position:absolute;left:10px;top:7px;width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-weight:bold;text-align:center;line-height:28px}
+ol.how li.ok{background:#dcf7e6;text-decoration:line-through;text-decoration-color:#2fbf71aa}
+ol.how li.ok::before{content:"✓";background:var(--green)}
+.tip{background:#fff1ad;border-radius:12px;padding:10px 14px;margin:12px 0}
+.warn{background:#ffe0dd;border-radius:12px;padding:10px 14px;margin:12px 0;border-left:6px solid var(--red)}
+.nav{display:flex;justify-content:space-between;gap:10px;margin-top:16px}
+.btn{border:0;cursor:pointer;font:bold 1rem inherit;padding:12px 20px;border-radius:14px;background:var(--blue);color:#fff;box-shadow:0 4px 0 #0e5f8d}
+.btn.alt{background:#fff;color:var(--ink);box-shadow:0 4px 0 #b9c9d4}
+.btn:active{transform:translateY(3px);box-shadow:none}
+.btn.big{font-size:1.2rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:10px 0}
+.item{background:#eefaff;border-radius:14px;padding:10px 12px;cursor:pointer;display:flex;gap:10px;align-items:center;font-weight:bold}
+.item .ic{font-size:1.7rem;width:42px;text-align:center}
+.item.ok{background:#d9f6e4}
+.item.ok::after{content:"✓";margin-left:auto;color:var(--green);font-size:1.4rem}
+.part-links{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0 14px;padding:9px;background:#edf8ff;border-radius:12px}
+.part-links strong{width:100%;font-size:.86rem;color:#0f5a82}
+.part-link,.back-link{border:0;border-radius:999px;background:#fff;color:#0f5a82;font:bold .84rem inherit;padding:7px 10px;cursor:pointer;box-shadow:0 2px 0 #bed6e4}
+.kit-intro{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.kit-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:14px;margin-top:14px}
+.kit-card{background:#f6fbff;border:2px solid #cae6f4;border-radius:17px;padding:13px;scroll-margin-top:82px}
+.kit-card.found{background:#e2f8ea;border-color:#6bd598}
+.kit-card:target{outline:5px solid #ffcc3d;animation:glow 1s 3}
+.kit-card h3{margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.part-photo{width:100%;height:170px;object-fit:contain;background:#fff;border:2px solid #e0edf3;border-radius:12px;display:block}
+.photo-note{display:block;margin:5px 0 9px;color:#4d6575;font-size:.72rem;line-height:1.25}
+.kit-card dl{margin:8px 0;font-size:.84rem;line-height:1.4}
+.kit-card dt{font-weight:bold;color:#0f5a82;margin-top:5px}
+.kit-card dd{margin:0}
+.found-toggle{width:100%;border:0;border-radius:10px;background:#e4f5ff;color:#0f5a82;font:bold .78rem inherit;padding:8px;cursor:pointer;margin-top:8px}
+.kit-card.found .found-toggle{background:#2fbf71;color:#fff}
+.mic-views{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}
+.back-diagram{height:170px;background:#eff7f1;border:2px solid #d1e5d5;border-radius:12px;display:grid;place-items:center;text-align:center;padding:10px;font-size:.78rem}
+.back-board{width:84px;height:128px;border-radius:7px;background:#218d5e;border:4px solid #0b6842;position:relative;box-shadow:inset 0 0 0 2px #5fc291}
+.back-board::before,.back-board::after{content:"";position:absolute;left:12px;right:12px;height:7px;border-radius:5px;background:repeating-linear-gradient(90deg,#d8b24a 0 7px,transparent 7px 14px)}
+.back-board::before{top:17px}.back-board::after{bottom:17px}
+.credits{font-size:.72rem;line-height:1.35;margin-top:14px;color:#506674}
+/* chat Ayudín */
+#chatBubble{position:fixed;right:18px;bottom:18px;z-index:60;border:0;border-radius:999px;background:#6c4ee3;color:#fff;font:bold 1rem inherit;padding:13px 18px;cursor:pointer;box-shadow:0 6px 0 #432ca2,0 10px 24px #17324d44}
+#chatPanel{position:fixed;right:18px;bottom:82px;z-index:59;width:min(390px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 110px));display:none;flex-direction:column;background:#fff;border:4px solid #fff;border-radius:20px;box-shadow:0 14px 40px #17324d55;overflow:hidden}
+#chatPanel.open{display:flex}
+.chat-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#6c4ee3;color:#fff}
+.chat-head strong{flex:1}.chat-head small{display:block;font-size:.68rem;opacity:.9}
+#chatClose{border:0;background:#ffffff22;color:#fff;border-radius:50%;width:34px;height:34px;font-size:1.2rem;cursor:pointer}
+#chatMessages{min-height:210px;overflow:auto;padding:12px;background:#f5f2ff;display:flex;flex-direction:column;gap:8px}
+.chat-msg{max-width:88%;padding:9px 11px;border-radius:13px;font-size:.82rem;line-height:1.35;white-space:pre-wrap}
+.chat-msg.bot{align-self:flex-start;background:#fff;border-bottom-left-radius:3px}
+.chat-msg.user{align-self:flex-end;background:#dff3ff;border-bottom-right-radius:3px}
+.chat-msg.error{background:#ffe0dd;color:#8a2222}
+.chat-quick{display:flex;gap:6px;overflow-x:auto;padding:9px 10px;background:#fff}
+.chat-quick button{flex:0 0 auto;border:1px solid #c8bfff;border-radius:999px;background:#f6f3ff;color:#44318c;padding:6px 9px;font:bold .67rem inherit;cursor:pointer}
+#chatForm{display:flex;gap:7px;padding:10px;background:#fff;border-top:1px solid #ddd6ff}
+#chatInput{min-width:0;flex:1;border:2px solid #c7bdf6;border-radius:12px;padding:9px;font:inherit;font-size:.78rem}
+#chatSend{border:0;border-radius:12px;background:#6c4ee3;color:#fff;font:bold .8rem inherit;padding:8px 11px;cursor:pointer}
+#chatSend:disabled{opacity:.45}
+.chat-status{padding:0 12px 8px;background:#fff;font-size:.65rem;color:#5b6c77}
+code,pre{font-family:Menlo,Consolas,monospace;font-size:.82em}
+pre{background:#10263a;color:#d9f2ff;padding:12px 14px;border-radius:12px;overflow:auto;position:relative;margin:8px 0}
+.cp{position:absolute;right:8px;top:8px;border:0;border-radius:8px;padding:4px 10px;cursor:pointer;background:#33a9dc;color:#fff;font-weight:bold}
+svg text{font-family:"Trebuchet MS",Arial,sans-serif}
+details{background:#f6fbff;border-radius:12px;padding:8px 14px;margin:8px 0}
+summary{cursor:pointer;font-weight:bold}
+.slider{width:100%;height:30px;accent-color:var(--blue)}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-weight:bold;color:#fff}
+/* animaciones */
+@keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes pop{0%{transform:scale(.2);opacity:0}70%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 0 #fff0)}50%{filter:drop-shadow(0 0 9px #ff9d00)}}
+@keyframes flow{to{stroke-dashoffset:-32}}
+@keyframes ring{0%{r:6;opacity:.9}100%{r:60;opacity:0}}
+@keyframes bob{50%{transform:translateY(-6px)}}
+.wire path.main{stroke-dasharray:1;stroke-dashoffset:0}
+.part{display:none}
+.part.show{display:inline}
+.part.fresh .wire path.main{animation:draw 1.1s ease-out both}
+.part.fresh .obj{transform-box:fill-box;transform-origin:center;animation:pop .6s .6s both,glow 1s 1.2s 3}
+.flowline{stroke:#fff;stroke-width:3;stroke-dasharray:6 10;fill:none;opacity:0}
+.live .flowline{opacity:.95;animation:flow .7s linear infinite}
+.led-glow{opacity:0;transition:opacity .2s}
+.hot .led-glow{opacity:1}
+.mic-ring{fill:none;stroke:#7a5cff;stroke-width:3;opacity:0}
+.listening .mic-ring{animation:ring 1.4s infinite}
+.listening .mic-ring:nth-of-type(2){animation-delay:.45s}
+.listening .mic-ring:nth-of-type(3){animation-delay:.9s}
+.bob{animation:bob 1.4s infinite}
+.hl{stroke:#ff9d00!important;stroke-width:4!important}
+@media(max-width:860px){.layout{grid-template-columns:1fr}#scenePanel{position:static;order:-1}body{font-size:17px}.kit-cards{grid-template-columns:1fr}}
+@media(max-width:520px){#chatBubble{right:12px;bottom:12px}#chatPanel{right:6px;bottom:70px;width:calc(100vw - 12px);max-height:calc(100vh - 82px)}.chat-msg{font-size:.9rem}.mic-views{grid-template-columns:1fr}.back-diagram{height:145px}.top-tabs{margin-top:8px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>📣 ➜ 🚦 Medidor de gritos</h1>
+  <p>Armado paso a paso. Haz clic en cada paso cuando lo termines. ¡Tú puedes!</p>
+  <nav class="top-tabs" aria-label="Secciones principales"><button class="top-tab primary" id="guideTab">🧭 Guía</button><button class="top-tab" id="kitTab">🧰 Mi kit</button></nav>
+</header>
+<div id="stepper"></div>
+<main>
+  <div class="layout" id="layout">
+    <div class="card" id="scenePanel">
+      <svg id="scene" viewBox="115 30 860 545" role="img" aria-label="Diagrama del montaje: Arduino y protoboard">
+        <defs>
+          <radialGradient id="gG"><stop offset="0" stop-color="#b7ffd2"/><stop offset="1" stop-color="#2fbf71" stop-opacity="0"/></radialGradient>
+          <radialGradient id="gY"><stop offset="0" stop-color="#fff0a0"/><stop offset="1" stop-color="#ffc928" stop-opacity="0"/></radialGradient>
+          <radialGradient id="gR"><stop offset="0" stop-color="#ffb3b3"/><stop offset="1" stop-color="#ee4b4b" stop-opacity="0"/></radialGradient>
+        </defs>
+        <!-- Arduino -->
+        <rect x="130" y="40" width="170" height="520" rx="18" fill="#1b86c4" stroke="#0f5a82" stroke-width="5"/>
+        <rect x="130" y="90" width="60" height="86" rx="6" fill="#c9d3da" stroke="#7b8b96" stroke-width="3"/>
+        <text x="160" y="140" font-size="13" text-anchor="middle" fill="#37495a" font-weight="bold">USB</text>
+        <text x="165" y="330" font-size="26" font-weight="bold" fill="#fff" text-anchor="middle" transform="rotate(-90 165 330)">ARDUINO UNO</text>
+        <g id="pins"></g>
+        <!-- protoboard -->
+        <rect x="370" y="52" width="590" height="400" rx="14" fill="#f3efe0" stroke="#cfc7a6" stroke-width="4"/>
+        <rect x="370" y="268" width="590" height="26" fill="#e3dcc3"/>
+        <text x="665" y="287" font-size="13" text-anchor="middle" fill="#8f875f">canal del medio (no conecta lados)</text>
+        <g id="holes"></g>
+        <!-- etiquetas filas -->
+        <g id="rowlabels" font-size="12" fill="#8f875f"></g>
+        <!-- piezas -->
+        <g id="parts"></g>
+        <g id="effects"></g>
+        <text id="sceneCaption" x="545" y="568" text-anchor="middle" font-size="18" fill="#0f5a82" font-weight="bold"></text>
+      </svg>
+    </div>
+    <div class="card" id="textPanel"></div>
+  </div>
+</main>
+
+<button id="chatBubble" type="button" aria-expanded="false" aria-controls="chatPanel">💬 Pregúntale a Ayudín</button>
+<aside id="chatPanel" role="dialog" aria-modal="false" aria-labelledby="chatTitle">
+  <div class="chat-head"><span aria-hidden="true">🤖</span><div><strong id="chatTitle">Ayudín</strong><small>Te ayuda con el paso que estás mirando</small></div><button id="chatClose" type="button" aria-label="Cerrar chat">×</button></div>
+  <div id="chatMessages" role="log" aria-live="polite"><div class="chat-msg bot">¡Hola! Cuéntame qué ves y lo revisamos juntos, paso a paso.</div></div>
+  <div class="chat-quick" aria-label="Preguntas rápidas"><button type="button">No se enciende el LED</button><button type="button">¿Cuál es el sensor de sonido?</button><button type="button">No sube el programa</button></div>
+  <form id="chatForm"><label for="chatInput" style="position:absolute;left:-9999px">Tu pregunta</label><input id="chatInput" maxlength="500" autocomplete="off" placeholder="Escribe tu pregunta…"><button id="chatSend" type="submit">Enviar</button></form>
+  <div class="chat-status" id="chatStatus">No escribas datos privados. Si algo se calienta, desconecta el USB y llama a papá.</div>
+</aside>
+
+<script>
+(function(){
+"use strict";
+/* ---------- geometría ---------- */
+var X=function(c){return 400+(c-1)*22;};
+var ROW={a:175,b:195,c:215,d:235,e:255};
+var RAIL_P=82, RAIL_N=104;
+var NS="http://www.w3.org/2000/svg";
+function el(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs){e.setAttribute(k,attrs[k]);}if(parent)parent.appendChild(e);return e;}
+
+/* ---------- pines Arduino ---------- */
+var pinsG=document.getElementById("pins");
+var PINS={"5V":{y:120},"GND":{y:150},"A0":{y:215},"D8":{y:290},"D9":{y:320},"D10":{y:350},"D11":{y:380}};
+Object.keys(PINS).forEach(function(k){
+  var p=PINS[k];
+  el("rect",{x:268,y:p.y-8,width:32,height:16,rx:4,fill:"#1a1a1a"},pinsG);
+  el("circle",{cx:300,cy:p.y,r:6,fill:"#e8c35a",stroke:"#a8862a","stroke-width":2},pinsG);
+  var t=el("text",{x:262,y:p.y+6,"text-anchor":"end","font-size":18,fill:"#fff","font-weight":"bold"},pinsG);t.textContent=k;
+});
+
+/* ---------- agujeros protoboard ---------- */
+var holes=document.getElementById("holes");
+for(var c=1;c<=25;c++){
+  ["a","b","c","d","e"].forEach(function(r){el("rect",{x:X(c)-4,y:ROW[r]-4,width:8,height:8,rx:2,fill:"#b9b196"},holes);});
+  el("rect",{x:X(c)-4,y:RAIL_P-4,width:8,height:8,rx:2,fill:"#b9b196"},holes);
+  el("rect",{x:X(c)-4,y:RAIL_N-4,width:8,height:8,rx:2,fill:"#b9b196"},holes);
+}
+el("line",{x1:384,y1:RAIL_P,x2:940,y2:RAIL_P,stroke:"#ee4b4b","stroke-width":2,opacity:.5},holes);
+el("line",{x1:384,y1:RAIL_N,x2:940,y2:RAIL_N,stroke:"#1b86c4","stroke-width":2,opacity:.5},holes);
+var rl=document.getElementById("rowlabels");
+[["+",RAIL_P,"#ee4b4b"],["−",RAIL_N+4,"#1b86c4"]].forEach(function(a){var t=el("text",{x:378,y:a[1]+5,"text-anchor":"end","font-size":20,"font-weight":"bold",fill:a[2]},rl);t.textContent=a[0];});
+["a","b","c","d","e"].forEach(function(r){var t=el("text",{x:384,y:ROW[r]+4,"text-anchor":"end","font-size":12},rl);t.textContent=r;});
+[1,5,10,15,20,25].forEach(function(c){var t=el("text",{x:X(c),y:160,"text-anchor":"middle","font-size":11},rl);t.textContent=c;});
+
+/* ---------- piezas ---------- */
+var parts=document.getElementById("parts");
+var groups={};
+function group(name){var g=el("g",{"class":"part",id:"g-"+name},parts);groups[name]=g;return g;}
+function wire(g,color,pts,opts){
+  var w=el("g",{"class":"wire"},g);
+  var d="M"+pts.map(function(p){return p[0]+" "+p[1];}).join(" L");
+  el("path",{d:d,stroke:"#fff","stroke-width":9,fill:"none","stroke-linejoin":"round","stroke-linecap":"round"},w);
+  var m=el("path",{"class":"main",d:d,stroke:color,"stroke-width":5,fill:"none","stroke-linejoin":"round","stroke-linecap":"round",pathLength:1},w);
+  el("path",{"class":"flowline",d:d},w);
+  pts.forEach(function(p,i){if(i===0||i===pts.length-1)el("circle",{cx:p[0],cy:p[1],r:5,fill:color,stroke:"#fff","stroke-width":2},w);});
+  return w;
+}
+function label(g,x,y,txt,color){var t=el("text",{x:x,y:y,"font-size":15,"font-weight":"bold",fill:color||"#17324d","text-anchor":"middle"},g);t.textContent=txt;return t;}
+
+/* paso 1: energía */
+(function(){
+  var g=group("power");
+  wire(g,"#ee4b4b",[[300,PINS["5V"].y],[312,PINS["5V"].y],[312,RAIL_P],[X(1),RAIL_P]]);
+  wire(g,"#222",[[300,PINS["GND"].y],[324,PINS["GND"].y],[324,RAIL_N],[X(1),RAIL_N]]);
+  var o=el("g",{"class":"obj"},g);
+  var l1=label(o,520,74,"riel + (5V)","#c62828");l1.setAttribute("font-size",13);
+  var l2=label(o,760,96,"riel − (tierra)","#1b86c4");l2.setAttribute("font-size",13);
+})();
+
+/* LED */
+var LEDS=[
+ {name:"rojo",pin:"D11",col:3,color:"#ee4b4b",glow:"gR",lane:165,xc:382},
+ {name:"amarillo",pin:"D10",col:7,color:"#ffc928",glow:"gY",lane:155,xc:370},
+ {name:"verde",pin:"D9",col:11,color:"#2fbf71",glow:"gG",lane:145,xc:358}
+];
+LEDS.forEach(function(L){
+  var g=group("led-"+L.name);
+  var pinY=PINS[L.pin].y, ax=X(L.col), cx=X(L.col+1);
+  wire(g,L.color,[[300,pinY],[L.xc,pinY],[L.xc,L.lane],[ax,L.lane],[ax,ROW.a]]);
+  var o=el("g",{"class":"obj"},g);
+  /* resistencia vertical cátodo -> riel - */
+  el("line",{x1:cx,y1:RAIL_N,x2:cx,y2:ROW.a,stroke:"#8a8a8a","stroke-width":3},o);
+  el("rect",{x:cx-11,y:118,width:22,height:46,rx:8,fill:"#e8c88a",stroke:"#a8814a","stroke-width":2},o);
+  [[125,"#ee4b4b"],[134,"#ee4b4b"],[143,"#8b4a1a"],[153,"#d6a900"]].forEach(function(b){el("rect",{x:cx-11,y:b[0],width:22,height:5,fill:b[1]},o);});
+  /* LED */
+  el("line",{x1:ax,y1:ROW.e,x2:ax,y2:ROW.a+30,stroke:"#8a8a8a","stroke-width":3},o);
+  el("line",{x1:cx,y1:ROW.e,x2:cx,y2:ROW.a+30,stroke:"#8a8a8a","stroke-width":3},o);
+  var hot=el("g",{"class":"ledhot",id:"hot-"+L.name},o);
+  el("circle",{cx:(ax+cx)/2,cy:ROW.c+4,r:46,fill:"url(#"+L.glow+")","class":"led-glow"},hot);
+  el("path",{d:"M"+(ax-13)+" "+(ROW.d+6)+" L"+(ax-13)+" "+(ROW.c-6)+" A"+((cx-ax)/2+13)+" "+((cx-ax)/2+13)+" 0 0 1 "+(cx+13)+" "+(ROW.c-6)+" L"+(cx+13)+" "+(ROW.d+6)+" Z",fill:L.color,stroke:"#0006","stroke-width":2,opacity:.92},hot);
+  var t1=label(o,ax-6,ROW.e+22,"+",L.color==="#ffc928"?"#8a6a00":L.color);t1.setAttribute("font-size",20);
+  var t2=label(o,cx+6,ROW.e+22,"−","#1b86c4");t2.setAttribute("font-size",20);
+  var t3=label(o,(ax+cx)/2,ROW.e+44,L.pin,"#17324d");
+  var t4=label(o,cx+26,146,"220Ω","#7a5b21");t4.setAttribute("font-size",13);
+});
+
+/* buzzer */
+(function(){
+  var g=group("buzzer");
+  var ax=X(15), cx=X(17);
+  wire(g,"#4f82df",[[300,PINS["D8"].y],[346,PINS["D8"].y],[346,135],[ax,135],[ax,ROW.a]]);
+  wire(g,"#222",[[cx,ROW.a],[cx,RAIL_N]]);
+  var o=el("g",{"class":"obj"},g);
+  el("line",{x1:ax,y1:ROW.e,x2:ax,y2:ROW.c,stroke:"#8a8a8a","stroke-width":3},o);
+  el("line",{x1:cx,y1:ROW.e,x2:cx,y2:ROW.c,stroke:"#8a8a8a","stroke-width":3},o);
+  var b=el("g",{id:"buzz"},o);
+  el("circle",{cx:X(16),cy:ROW.c,r:25,fill:"#222",stroke:"#000","stroke-width":2},b);
+  el("circle",{cx:X(16),cy:ROW.c,r:6,fill:"#555"},b);
+  var t=label(o,X(16),ROW.e+22,"+ D8     − GND","#17324d");t.setAttribute("font-size",13);
+  var s=el("g",{id:"buzzwaves",opacity:0},o);
+  [34,44].forEach(function(r){el("path",{d:"M"+(X(16)+r)+" "+(ROW.c-14)+" Q"+(X(16)+r+10)+" "+ROW.c+" "+(X(16)+r)+" "+(ROW.c+14),stroke:"#ee4b4b","stroke-width":3,fill:"none"},s);});
+})();
+
+/* micrófono */
+(function(){
+  var g=group("mic");
+  var cA=21,cG=22,cV=23,cD=24;
+  wire(g,"#9155d8",[[300,PINS["A0"].y],[334,PINS["A0"].y],[334,125],[X(cA),125],[X(cA),ROW.a]]);
+  wire(g,"#222",[[X(cG),ROW.a],[X(cG),RAIL_N]]);
+  wire(g,"#ee4b4b",[[X(cV),ROW.a],[X(cV),RAIL_P]]);
+  var o=el("g",{"class":"obj"},g);
+  [cA,cG,cV,cD].forEach(function(c){el("line",{x1:X(c),y1:ROW.e,x2:X(c),y2:298,stroke:"#d8b24a","stroke-width":4},o);});
+  el("rect",{x:X(cA)-14,y:298,width:22*3+28,height:108,rx:8,fill:"#1f9d6a",stroke:"#0d6b45","stroke-width":3},o);
+  el("circle",{cx:X(cA)+18,cy:340,r:19,fill:"#c4ccd3",stroke:"#7b8b96","stroke-width":3},o);
+  el("circle",{cx:X(cA)+18,cy:340,r:8,fill:"#555"},o);
+  el("rect",{x:X(cA)+46,y:368,width:26,height:26,rx:3,fill:"#2f7fd0",stroke:"#1a4f8a","stroke-width":2},o);
+  el("circle",{cx:X(cA)+59,cy:381,r:6,fill:"#e8e8e8"},o);
+  label(o,X(cA)+30,402,"SENSOR","#fff").setAttribute("font-size",10);
+  var pn=["A0","G","+","D0"];
+  [cA,cG,cV,cD].forEach(function(c,i){var t=label(o,X(c),ROW.e+22,pn[i],i===3?"#999":"#17324d");t.setAttribute("font-size",13);});
+  label(o,X(cD),ROW.e+38,"(no se usa)","#999").setAttribute("font-size",10);
+  var rings=el("g",{id:"micrings","class":""},o);
+  [1,2,3].forEach(function(){el("circle",{cx:X(cA)+18,cy:340,r:6,"class":"mic-ring"},rings);});
+})();
+
+/* ---------- paso a paso ---------- */
+var LABELS={power:"Energía: 5V → riel + · GND → riel −",
+ "led-rojo":"LED rojo en D11","led-amarillo":"LED amarillo en D10","led-verde":"LED verde en D9",
+ buzzer:"Buzzer en D8","mic":"Micrófono en A0"};
+
+var STEPS=[
+ {id:"mision",title:"La misión",scene:false},
+ {id:"kit",title:"Mi kit",scene:false},
+ {id:"protoboard",title:"La protoboard",scene:false},
+ {id:"power",title:"Paso 1 · Energía",scene:true,upto:["power"]},
+ {id:"led-rojo",title:"Paso 2 · LED rojo",scene:true,upto:["power","led-rojo"]},
+ {id:"led-amarillo",title:"Paso 3 · LED amarillo",scene:true,upto:["power","led-rojo","led-amarillo"]},
+ {id:"led-verde",title:"Paso 4 · LED verde",scene:true,upto:["power","led-rojo","led-amarillo","led-verde"]},
+ {id:"buzzer",title:"Paso 5 · Buzzer",scene:true,upto:["power","led-rojo","led-amarillo","led-verde","buzzer"]},
+ {id:"mic",title:"Paso 6 · Micrófono",scene:true,upto:["power","led-rojo","led-amarillo","led-verde","buzzer","mic"]},
+ {id:"prueba",title:"Revisión y prueba",scene:true,upto:["power","led-rojo","led-amarillo","led-verde","buzzer","mic"],live:true},
+ {id:"codigo",title:"El código",scene:false},
+ {id:"google",title:"Google Home",scene:false}
+];
+
+var progress=load();
+var cur=0;
+function load(){try{var v=JSON.parse(localStorage.getItem("mg-prog")||"{}");return v;}catch(e){return {};}}
+function save(){try{localStorage.setItem("mg-prog",JSON.stringify(progress));}catch(e){}}
+
+var COMPONENTS=[
+ {id:"arduino",icon:"🔌",name:"Arduino Uno",use:"Es el cerebro: lee el ruido y decide qué luz prender.",find:"Placa azul grande. Dice UNO y tiene conectores negros a los lados y un conector USB cuadrado.",steps:[3,4,5,6,7,8,9,10]},
+ {id:"cable-usb",icon:"🔗",name:"Cable USB A–B",use:"Da 5 V seguros y permite subir el programa desde el Mac.",find:"Una punta plana para el Mac y otra casi cuadrada para el Arduino. No es un enchufe de pared.",steps:[9,10,11]},
+ {id:"protoboard",icon:"🟫",name:"Protoboard",use:"Une piezas y cables sin soldar.",find:"Placa blanca con muchos agujeritos, números, letras y líneas roja (+) y azul (−).",steps:[2,3,4,5,6,7,8]},
+ {id:"leds",icon:"🚦",name:"LED rojo, amarillo y verde",use:"Muestran si el ruido está tranquilo, subiendo o muy alto.",find:"Ampolletitas pequeñas de color. La pata larga es +; la corta y el lado plano son −.",steps:[4,5,6,9]},
+ {id:"resistencias",icon:"🟤",name:"Resistencias 220 Ω",use:"Protegen los LED para que no se quemen.",find:"Cilindro beige con bandas rojo-rojo-café-dorado. Si son 330 Ω: naranja-naranja-café-dorado; también sirven.",steps:[4,5,6,9]},
+ {id:"buzzer",icon:"🔔",name:"Buzzer",use:"Hace el bip cuando el rojo dura mucho.",find:"Cilindro negro con dos patitas. Busca el signo + o la pata más larga.",steps:[7,9]},
+ {id:"microfono",icon:"🎤",name:"Sensor de sonido",use:"Escucha la intensidad del ruido y manda un valor al pin A0.",find:"Placa roja, verde o azul con un micrófono plateado, potenciómetro azul y pines AO, GND, VCC y DO.",steps:[8,9]},
+ {id:"jumpers",icon:"〰️",name:"Cables jumper",use:"Llevan señales y energía entre Arduino y protoboard.",find:"Cables de colores con una punta metálica rígida en cada extremo: macho–macho.",steps:[3,4,5,6,7,8]}
+];
+var COMPONENT_BY_ID={};
+COMPONENTS.forEach(function(c){COMPONENT_BY_ID[c.id]=c;});
+var STEP_COMPONENTS={
+ mision:["arduino","microfono","leds","buzzer"],protoboard:["protoboard"],power:["arduino","protoboard","jumpers"],
+ "led-rojo":["leds","resistencias","jumpers"],"led-amarillo":["leds","resistencias","jumpers"],"led-verde":["leds","resistencias","jumpers"],
+ buzzer:["buzzer","jumpers"],mic:["microfono","jumpers"],prueba:["arduino","leds","buzzer","microfono"],codigo:["arduino","cable-usb"],google:["arduino","cable-usb"]
+};
+
+var HTML={};
+HTML.mision=function(){return ''+
+ '<h2>🎯 La misión</h2>'+
+ '<p>Vamos a construir un <b>semáforo de ruido</b>. Si en la casa hay mucho ruido, se pone <span class="pill" style="background:#ee4b4b">rojo</span>, suena una alarma ¡y el Google Home dice <b>“bajen el volumen”</b>!</p>'+
+ '<svg id="flow" viewBox="0 0 900 250" style="width:100%;height:auto;background:#f4fbff;border-radius:14px;border:2px dashed #8ccbe6">'+
+ '<g id="fl-n0"><circle cx="70" cy="90" r="44" fill="#fff3d4" stroke="#f0b33b" stroke-width="4"/><text x="70" y="102" font-size="40" text-anchor="middle">🗣️</text><text x="70" y="165" font-size="15" text-anchor="middle" font-weight="bold">Alguien grita</text></g>'+
+ '<g id="fl-n1"><circle cx="230" cy="90" r="44" fill="#ece3ff" stroke="#7a5cff" stroke-width="4"/><text x="230" y="102" font-size="40" text-anchor="middle">🎤</text><text x="230" y="165" font-size="15" text-anchor="middle" font-weight="bold">Micrófono</text><text x="230" y="184" font-size="12" text-anchor="middle">escucha el ruido</text></g>'+
+ '<g id="fl-n2"><circle cx="390" cy="90" r="44" fill="#d9efff" stroke="#1b86c4" stroke-width="4"/><text x="390" y="102" font-size="40" text-anchor="middle">🧠</text><text x="390" y="165" font-size="15" text-anchor="middle" font-weight="bold">Arduino</text><text x="390" y="184" font-size="12" text-anchor="middle">decide qué color</text></g>'+
+ '<g id="fl-n3"><circle cx="550" cy="90" r="44" fill="#ffe3e0" stroke="#ee4b4b" stroke-width="4"/><text x="550" y="102" font-size="40" text-anchor="middle">🚦</text><text x="550" y="165" font-size="15" text-anchor="middle" font-weight="bold">Semáforo + 🔔</text><text x="550" y="184" font-size="12" text-anchor="middle">luces y alarma</text></g>'+
+ '<g id="fl-n4"><circle cx="710" cy="90" r="44" fill="#e0ffe9" stroke="#2fbf71" stroke-width="4"/><text x="710" y="102" font-size="40" text-anchor="middle">💻</text><text x="710" y="165" font-size="15" text-anchor="middle" font-weight="bold">Mac</text><text x="710" y="184" font-size="12" text-anchor="middle">por el cable USB</text></g>'+
+ '<g id="fl-n5"><circle cx="850" cy="90" r="40" fill="#fff" stroke="#17324d" stroke-width="4"/><text x="850" y="102" font-size="36" text-anchor="middle">🔊</text><text x="850" y="165" font-size="15" text-anchor="middle" font-weight="bold">Google Home</text></g>'+
+ '<g stroke="#8ccbe6" stroke-width="5" stroke-dasharray="4 8"><line x1="116" y1="90" x2="184" y2="90"/><line x1="276" y1="90" x2="344" y2="90"/><line x1="436" y1="90" x2="504" y2="90"/><line x1="596" y1="90" x2="664" y2="90"/><line x1="756" y1="90" x2="812" y2="90"/></g>'+
+ '<circle id="pulse" cx="70" cy="90" r="9" fill="#ff9d00" stroke="#fff" stroke-width="3"/>'+
+ '<text id="flcap" x="450" y="232" font-size="19" text-anchor="middle" font-weight="bold" fill="#0f5a82"></text></svg>'+
+ '<h3>¿Qué vas a hacer tú?</h3>'+
+ '<p>Armar la parte de la izquierda: <b>micrófono, Arduino, semáforo y alarma</b>. Papá se encarga de subir el código y conectar el Google Home. Pero tú vas a entender cómo funciona cada pieza.</p>'+
+ '<div class="tip">⏱️ Tiempo: más o menos <b>40 minutos</b>. Cada paso tiene un dibujo que se va armando solo, ¡igual que lo vas a armar tú!</div>';};
+
+HTML.kit=function(){
+ function card(c){
+  var links=c.steps.map(function(i){return '<button class="back-link" type="button" data-go-step="'+i+'">'+STEPS[i].title.replace(/^Paso [0-9]+ · /,'')+'</button>';}).join(' ');
+  var picture='<img class="part-photo" src="fotos/'+c.id+'.jpg" data-fallback="fotos/generica-'+c.id+'.jpg" alt="Foto real de '+c.name+'">';
+  if(c.id==="microfono")picture='<div class="mic-views"><div>'+picture+'<span class="photo-note">Frente genérico KY-038: mira el micrófono, la perilla azul y las letras de los pines.</span></div><div class="back-diagram" role="img" aria-label="Dibujo del reverso de un módulo de sonido"><div><div class="back-board" aria-hidden="true"></div><b>Reverso</b><br>Se ven soldaduras y pistas.<br>Las letras pueden quedar al otro lado.</div></div></div>';
+  return '<article class="kit-card" id="componente-'+c.id+'"><h3><span aria-hidden="true">'+c.icon+'</span>'+c.name+'</h3>'+picture+
+   '<span class="photo-note">Si existe <code>fotos/'+c.id+'.jpg</code>, aparece tu pieza; si no, ves esta foto genérica.</span><dl><dt>¿Para qué sirve?</dt><dd>'+c.use+'</dd><dt>¿Cómo lo reconozco?</dt><dd>'+c.find+'</dd><dt>¿Dónde se usa?</dt><dd>'+links+'</dd></dl><button class="found-toggle" type="button" data-found="'+c.id+'">✓ La encontré</button></article>';
+ }
+ return '<div class="kit-intro"><div><h2>🧰 Mi kit</h2><p>Compara cada pieza con la foto y el dibujo. Marca cada una cuando la encuentres.</p></div></div>'+
+ '<div class="warn">⚠️ Arma siempre con el <b>USB desconectado</b>. Solo usamos 5 V por USB: nunca enchufes de la pared ni abras pilas.</div>'+
+ '<div class="kit-cards">'+COMPONENTS.map(card).join('')+'</div>'+
+ '<details><summary>🔎 Dibujo: cómo leer 220 Ω</summary><svg viewBox="0 0 520 120" style="width:100%;max-width:520px"><line x1="10" y1="60" x2="510" y2="60" stroke="#8a8a8a" stroke-width="5"/><rect x="150" y="30" width="220" height="60" rx="28" fill="#e8c88a" stroke="#a8814a" stroke-width="3"/><rect x="196" y="30" width="16" height="60" fill="#ee4b4b"/><rect x="226" y="30" width="16" height="60" fill="#ee4b4b"/><rect x="256" y="30" width="16" height="60" fill="#8b4a1a"/><rect x="316" y="30" width="16" height="60" fill="#d6a900"/><text x="204" y="112" font-size="14" text-anchor="middle">rojo</text><text x="234" y="112" font-size="14" text-anchor="middle">rojo</text><text x="264" y="112" font-size="14" text-anchor="middle">café</text><text x="324" y="112" font-size="14" text-anchor="middle">dorado</text></svg><p><b>rojo-rojo-café</b> = 220 Ω. Para 330 Ω busca <b>naranja-naranja-café</b>.</p></details>'+
+ '<details><summary>💡 Dibujo: el lado + y − del LED</summary><svg viewBox="0 0 520 170" style="width:100%;max-width:520px"><path d="M210 90 V50 A50 50 0 0 1 310 50 V90 Z" fill="#ee4b4b" stroke="#0006" stroke-width="3"/><rect x="304" y="60" width="8" height="30" fill="#b23030"/><line x1="228" y1="90" x2="228" y2="160" stroke="#8a8a8a" stroke-width="5"/><line x1="292" y1="90" x2="292" y2="130" stroke="#8a8a8a" stroke-width="5"/><text x="190" y="150" font-size="16" text-anchor="end" font-weight="bold" fill="#c62828">pata larga = +</text><text x="330" y="130" font-size="16" font-weight="bold" fill="#1b86c4">pata corta = −</text><text x="330" y="82" font-size="13" fill="#555">(lado plano)</text></svg></details>'+
+ '<div class="tip"><b>Ojo con el sensor:</b> KY-037 y KY-038 suelen tener micrófono grande, potenciómetro azul y AO/GND/VCC/DO. El MAX4466 es distinto: suele decir OUT/GND/VCC y no tiene salida DO. Sigue las letras de <b>tu</b> placa; para esta guía se necesita una salida analógica.</div>'+
+ '<p class="credits">Fotos genéricas: SparkFun, ArnoldReinhold, oomlout, SpeedyGonzalez y colaboradores, Evan-Amos, Jdx y DaviBosco04. Licencias y enlaces completos en <a href="FOTOS-CREDITOS.md">FOTOS-CREDITOS.md</a>.</p>';};
+
+HTML.protoboard=function(){return ''+
+ '<h2>🟫 La protoboard</h2>'+
+ '<p>Es una placa con agujeritos que están <b>conectados por dentro</b>. Así armamos circuitos sin soldar. Haz clic en cualquier agujero y mira cuáles quedan conectados.</p>'+
+ '<svg id="pbx" viewBox="0 0 500 270" style="width:100%;height:auto;background:#f6f1de;border-radius:14px;border:3px solid #cfc7a6"></svg>'+
+ '<div class="tip" id="pbtxt">👆 Haz clic en un agujero.</div>'+
+ '<ul><li>Cada <b>columna</b> (número) tiene 5 agujeros conectados: a-b-c-d-e juntos, y f-g-h-i-j juntos.</li><li>El <b>canal del medio</b> separa los dos lados: no pasa corriente entre ellos.</li><li>Las líneas de arriba, la roja <b>+</b> y la azul <b>−</b> (los <b>rieles</b>), están conectadas a lo largo.</li></ul>'+
+ '<p>Nosotros usamos el riel <b>+</b> para el <b>5V</b> y el riel <b>−</b> para la <b>tierra (GND)</b>, y la mitad de arriba (filas a–e).</p>';};
+
+function stepHTML(title,goal,steps,tip,warn){
+ return '<h2>'+title+'</h2><div class="goal">'+goal+'</div><ol class="how">'+steps.map(function(s,i){return '<li data-k="'+title+i+'">'+s+'</li>';}).join('')+'</ol>'+(tip?'<div class="tip">'+tip+'</div>':'')+(warn?'<div class="warn">'+warn+'</div>':'');
+}
+HTML.power=function(){return stepHTML('⚡ Paso 1 · Energía','Llevar corriente a la protoboard con dos cables: uno <b style="color:#c62828">rojo</b> (+) y uno <b>negro</b> (−).',[
+ 'Mira el dibujo: el cable <b style="color:#c62828">rojo</b> va del pin <b>5V</b> del Arduino al <b>riel +</b> (línea roja de arriba).',
+ 'El cable <b>negro</b> va del pin <b>GND</b> del Arduino al <b>riel −</b> (línea azul).',
+ 'Empuja bien cada punta hasta el fondo. Debe quedar firme.'],
+ '💡 Los colores son solo ayuda: <b>rojo = +</b>, <b>negro = −</b>. Así nunca te confundes.',
+ 'Recuerda: el Arduino todavía <b>sin el cable USB</b>.');};
+HTML["led-rojo"]=function(){return stepHTML('🔴 Paso 2 · LED rojo','El semáforo necesita luz roja: ¡para cuando hay gritos!',[
+ 'Pon el <b>LED rojo</b> en la fila <b>e</b>: pata <b>larga (+)</b> en la <b>columna 3</b> y pata <b>corta (−)</b> en la <b>columna 4</b>.',
+ 'Pon una <b>resistencia de 220 Ω</b>: una punta en la <b>columna 4</b> (fila a) y la otra en el <b>riel −</b>.',
+ 'Cable de <b>D11</b> del Arduino a la <b>columna 3</b>, fila a.'],
+ '🧠 La corriente sale por D11, pasa por el LED (¡se prende!), luego por la resistencia y vuelve al riel −.',
+ 'Si lo pones al revés no prende. ¡Solo dalo vuelta!');};
+HTML["led-amarillo"]=function(){return stepHTML('🟡 Paso 3 · LED amarillo','El amarillo avisa: “¡cuidado, el ruido está subiendo!”.',[
+ '<b>LED amarillo</b> en fila <b>e</b>: pata larga (+) en columna <b>7</b>, pata corta (−) en columna <b>8</b>.',
+ '<b>Resistencia 220 Ω</b> de columna <b>8</b> (fila a) al <b>riel −</b>.',
+ 'Cable de <b>D10</b> a la <b>columna 7</b>, fila a.'],
+ '✅ Es el mismo montaje del rojo. ¡Ya eres experto!');};
+HTML["led-verde"]=function(){return stepHTML('🟢 Paso 4 · LED verde','El verde dice “todo tranquilo”. Va encendido casi todo el día.',[
+ '<b>LED verde</b> en fila <b>e</b>: pata larga (+) en columna <b>11</b>, pata corta (−) en columna <b>12</b>.',
+ '<b>Resistencia 220 Ω</b> de columna <b>12</b> (fila a) al <b>riel −</b>.',
+ 'Cable de <b>D9</b> a la <b>columna 11</b>, fila a.'],
+ '🏁 Ya tienes el semáforo completo: rojo, amarillo y verde.');};
+HTML.buzzer=function(){return stepHTML('🔔 Paso 5 · Buzzer','La alarma que suena cuando el rojo dura mucho rato.',[
+ 'Pon el <b>buzzer</b>: la pata del <b>+</b> (marcada con un signo +, o la más larga) en la <b>columna 15</b> y la otra en la <b>columna 17</b>, fila e.',
+ 'Cable de <b>D8</b> a la <b>columna 15</b>, fila a.',
+ 'Cable <b>negro</b> de la <b>columna 17</b>, fila a, al <b>riel −</b>.'],
+ '🎵 Si tu buzzer tiene una etiqueta arriba, déjala puesta. Si suena siempre el mismo “bip”, es un buzzer activo: igual funciona.');};
+HTML.mic=function(){return stepHTML('🎤 Paso 6 · Micrófono','Los “oídos” del medidor. Escucha cuánto ruido hay.',[
+ 'Enchufa el <b>sensor de sonido</b> con sus patitas en la fila <b>e</b>, columnas <b>21, 22, 23, 24</b>: <b>A0, G, +, D0</b> en ese orden, mirando de izquierda a derecha.',
+ 'Cable <b style="color:#9155d8">morado</b> de <b>A0</b> del Arduino a la <b>columna 21</b>, fila a.',
+ 'Cable <b>negro</b> de la <b>columna 22</b> (G) al <b>riel −</b>.',
+ 'Cable <b style="color:#c62828">rojo</b> de la <b>columna 23</b> (+) al <b>riel +</b>.'],
+ '🔄 Mira las letras impresas en TU sensor: si el orden es distinto, manda lo que dice la placa. Siempre <b>G → riel −</b> y <b>+ → riel +</b>.',
+ 'Ojo: el cable rojo del sensor va al <b>+</b> (5V). Si lo cruzas con G, el sensor se calienta: desenchufa y revisa.');};
+HTML.prueba=function(){return ''+
+ '<h2>✅ Revisión y prueba</h2>'+
+ '<p>Antes de enchufar, revisa tu montaje con el dibujo. Marca cada cosa:</p>'+
+ '<ol class="how">'+[
+ '5V → riel + (cable rojo) y GND → riel − (cable negro).',
+ 'Los 3 LED con la pata larga hacia la izquierda y su resistencia al riel −.',
+ 'D11 → rojo (col 3), D10 → amarillo (col 7), D9 → verde (col 11).',
+ 'Buzzer en D8 (col 15) y su otra pata al riel −.',
+ 'Micrófono: A0 al A0, G al riel −, + al riel +.'].map(function(s,i){return '<li data-k="rev'+i+'">'+s+'</li>';}).join('')+'</ol>'+
+ '<div class="warn">Cuando todo esté marcado, llama a papá para que revise y enchufe el USB. 🔌</div>'+
+ '<h3>🎮 Simulador: así se va a ver</h3>'+
+ '<p>Mueve el control para “gritar” y mira cómo reacciona el dibujo de la izquierda.</p>'+
+ '<div style="text-align:center;font-size:1.6rem;font-weight:bold" id="simtxt">🟢 Todo tranquilo</div>'+
+ '<input class="slider" id="noise" type="range" min="0" max="100" value="10" aria-label="Nivel de ruido">'+
+ '<div style="text-align:center"><span id="simnum" style="font-size:1.8rem;font-weight:bold;color:#1b86c4">10</span> % de ruido</div>';};
+
+HTML.codigo=function(){return ''+
+ '<h2>💻 El código (con papá)</h2>'+
+ '<p>El Arduino es como un cerebro vacío: hay que <b>enseñarle</b> qué hacer. El programa ya está escrito. Lo subimos por el cable USB.</p>'+
+ '<h3>1) Subir el programa</h3>'+
+ '<pre><button class="cp">copiar</button>cd ~/Desktop/coding-projects/medidor-de-gritos\narduino-cli board list\narduino-cli compile --fqbn arduino:avr:uno MedidorDeGritos\narduino-cli upload -p PUERTO --fqbn arduino:avr:uno MedidorDeGritos</pre>'+
+ '<p>Cambia <code>PUERTO</code> por lo que sale en <code>board list</code> (algo como <code>/dev/cu.usbmodem…</code>).</p>'+
+ '<h3>2) Calibrar: 3 segundos de silencio 🤫</h3>'+
+ '<p>Al prender, el amarillo parpadea 3 segundos. Ahí el Arduino <b>aprende cuánto ruido normal hay</b>. Después pone dos líneas: amarilla (2,5 veces el ruido normal) y roja (4 veces).</p>'+
+ '<svg id="chart" viewBox="0 0 600 220" style="width:100%;height:auto;background:#10263a;border-radius:14px"></svg>'+
+ '<div style="text-align:center;margin:8px"><button class="btn" id="shout">📣 ¡Gritar!</button></div>'+
+ '<h3>3) Ajustar la sensibilidad</h3>'+
+ '<ul><li><b>Siempre está en rojo:</b> gira con un destornillador chico la perillita azul del sensor, hasta que vuelva el verde.</li><li><b>Nunca sale del verde:</b> gira la perillita al otro lado.</li><li>También puedes cambiar <code>FACTOR_ROJO</code> en el programa (más grande = menos sensible).</li></ul>'+
+ '<h3>4) Mirar los números</h3>'+
+ '<pre><button class="cp">copiar</button>arduino-cli monitor -p PUERTO -c baudrate=9600</pre>'+
+ '<p>Verás <code>nivel:</code>, <code>amarillo:</code> y <code>rojo:</code>. Cuando <b>nivel</b> pasa a <b>rojo</b> por 1,5 segundos, ¡suena la alarma!</p>'+
+ '<div class="warn">Cierra el monitor antes de volver a subir el programa o de correr el puente del Google Home: el USB solo lo usa uno a la vez.</div>';};
+
+HTML.google=function(){return ''+
+ '<h2>🔊 Que hable el Google Home (con papá)</h2>'+
+ '<p>Cuando el Arduino da la alarma, manda la palabra <code>ALARMA</code> por el USB. Un programa en el Mac la escucha y hace hablar al parlante de la cocina.</p>'+
+ '<pre><button class="cp">copiar</button>PY="$HOME/Library/Application Support/medidor-de-gritos/venv/bin/python"\n"$PY" puente/puente_google_home.py "Kitchen speaker" --volumen 0.6</pre>'+
+ '<div class="tip">Para que funcione: el Mac prendido, en el mismo WiFi que el Google Home, y el Arduino conectado por USB.</div>'+
+ '<h3>🛠️ ¿Algo no funciona?</h3>'+
+ '<details><summary>Un LED no prende</summary>Revisa que la pata larga (+) esté a la izquierda, que la resistencia llegue al riel − y que el cable del pin (D9, D10 o D11) esté en la columna correcta.</details>'+
+ '<details><summary>Ningún LED prende</summary>Mira que el cable USB esté enchufado y que 5V y GND lleguen a los rieles. ¿El riel + y el − no están al revés?</details>'+
+ '<details><summary>Siempre se queda en rojo o en verde</summary>Gira la perillita del sensor de sonido y vuelve a calibrar: apaga, prende y haz 3 segundos de silencio.</details>'+
+ '<details><summary>El buzzer no suena</summary>Revisa que el + esté en la columna de D8 y la otra pata al riel −. Si suena muy bajito, dale vuelta al buzzer.</details>'+
+ '<details><summary>El Google Home no habla</summary>Revisa que el Mac y el parlante estén en el mismo WiFi y que el monitor serial esté cerrado.</details>'+
+ '<h2 style="margin-top:22px">🎉 ¡Misión cumplida!</h2><p>Ya sabes cómo funciona un micrófono, un semáforo y un cerebro Arduino. ¿Quién más en la casa quiere probarlo?</p>';};
+
+/* ---------- render ---------- */
+var stepper=document.getElementById("stepper");
+var textPanel=document.getElementById("textPanel");
+var layout=document.getElementById("layout");
+var scene=document.getElementById("scene");
+var caption=document.getElementById("sceneCaption");
+var lastShown={};
+
+function buildStepper(){
+  stepper.innerHTML="";
+  STEPS.forEach(function(s,i){
+    var b=document.createElement("button");
+    b.textContent=i;b.title=s.title;
+    if(progress["done"+i])b.className="done";
+    if(i===cur)b.className+=" cur";
+    b.addEventListener("click",function(){go(i);});
+    stepper.appendChild(b);
+  });
+}
+function applyScene(s){
+  Object.keys(groups).forEach(function(n){
+    var show=s.upto&&s.upto.indexOf(n)>=0;
+    var g=groups[n];
+    var wasShown=g.classList.contains("show");
+    if(show){g.classList.add("show");
+      if(!wasShown||(s.id===n)){g.classList.remove("fresh");void g.getBoundingClientRect();if(s.id===n)g.classList.add("fresh");}
+    }else{g.classList.remove("show");g.classList.remove("fresh");}
+  });
+  caption.textContent=s.upto?(LABELS[s.id]||(s.live?"¡Montaje completo!":"")):"";
+  var pw=groups.power;
+  scene.classList.toggle("live",!!s.live);
+  if(!s.live){setSim(null);}
+}
+function componentLinks(s){
+  var ids=STEP_COMPONENTS[s.id]||[];
+  if(!ids.length)return "";
+  return '<div class="part-links"><strong>🧰 Mira estas piezas en Mi kit:</strong>'+ids.map(function(id){var c=COMPONENT_BY_ID[id];return '<button type="button" class="part-link" data-component="'+id+'">'+c.icon+' '+c.name+'</button>';}).join('')+'</div>';
+}
+function openKit(id){
+  go(1);
+  setTimeout(function(){
+    var card=id&&document.getElementById("componente-"+id);
+    if(card){history.replaceState(null,"","#componente-"+id);card.scrollIntoView({behavior:"smooth",block:"start"});}
+  },50);
+}
+function wireLinks(){
+  Array.prototype.forEach.call(textPanel.querySelectorAll("[data-component]"),function(b){b.addEventListener("click",function(){openKit(b.getAttribute("data-component"));});});
+  Array.prototype.forEach.call(textPanel.querySelectorAll("[data-go-step]"),function(b){b.addEventListener("click",function(){go(+b.getAttribute("data-go-step"));});});
+}
+function initKit(){
+  Array.prototype.forEach.call(textPanel.querySelectorAll(".part-photo"),function(img){
+    img.addEventListener("error",function fallback(){img.removeEventListener("error",fallback);img.src=img.getAttribute("data-fallback");});
+  });
+  Array.prototype.forEach.call(textPanel.querySelectorAll("[data-found]"),function(b){
+    var id=b.getAttribute("data-found"),card=b.closest(".kit-card"),key="kit-found-"+id;
+    if(progress[key]){card.classList.add("found");b.textContent="✓ Encontrada";}
+    b.addEventListener("click",function(){var found=card.classList.toggle("found");progress[key]=found;b.textContent=found?"✓ Encontrada":"✓ La encontré";save();});
+  });
+}
+function go(i){
+  cur=Math.max(0,Math.min(STEPS.length-1,i));
+  var s=STEPS[cur];
+  textPanel.innerHTML=HTML[s.id]();
+  if(s.id!=="kit")textPanel.insertAdjacentHTML("afterbegin",componentLinks(s));
+  var nav=document.createElement("div");nav.className="nav";
+  nav.innerHTML='<button class="btn alt" '+(cur===0?'disabled style="opacity:.4"':'')+' id="prev">← Atrás</button><button class="btn big" id="next">'+(cur===STEPS.length-1?'¡Listo! 🎉':'Siguiente →')+'</button>';
+  textPanel.appendChild(nav);
+  layout.classList.toggle("solo",!s.scene);
+  document.getElementById("prev").addEventListener("click",function(){go(cur-1);});
+  document.getElementById("next").addEventListener("click",function(){progress["done"+cur]=true;save();if(cur<STEPS.length-1)go(cur+1);else buildStepper();});
+  wireChecks();
+  wireLinks();
+  initExtras(s);
+  if(s.scene)applyScene(s);
+  buildStepper();
+  document.getElementById("guideTab").setAttribute("aria-current",s.id==="kit"?"false":"page");
+  document.getElementById("kitTab").setAttribute("aria-current",s.id==="kit"?"page":"false");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function wireChecks(){
+  var all=textPanel.querySelectorAll("[data-k]");
+  Array.prototype.forEach.call(all,function(n){
+    var k="chk-"+n.getAttribute("data-k");
+    if(progress[k])n.classList.add("ok");
+    n.addEventListener("click",function(){n.classList.toggle("ok");progress[k]=n.classList.contains("ok");save();});
+  });
+  Array.prototype.forEach.call(textPanel.querySelectorAll(".cp"),function(b){
+    b.addEventListener("click",function(){
+      var t=b.parentNode.textContent.replace(/^copiar/,"").replace(/copiado ✓$/,"");
+      try{navigator.clipboard.writeText(t);b.textContent="copiado ✓";setTimeout(function(){b.textContent="copiar";},1500);}catch(e){}
+    });
+  });
+}
+
+/* ---------- extras por paso ---------- */
+var timers=[];
+function clearTimers(){timers.forEach(function(t){clearInterval(t);});timers=[];}
+function initExtras(s){
+  clearTimers();
+  if(s.id==="mision")initFlow();
+  if(s.id==="kit")initKit();
+  if(s.id==="protoboard")initBoard();
+  if(s.id==="prueba")initSim();
+  if(s.id==="codigo")initChart();
+}
+function initFlow(){
+  var xs=[70,230,390,550,710,850];
+  var caps=["¡Alguien grita muy fuerte!","El micrófono capta el sonido","El Arduino compara con su ruido normal","Se prende el rojo y suena la alarma","Le avisa al Mac por el USB","¡El Google Home dice: bajen el volumen!"];
+  var i=0;
+  var pulse=document.getElementById("pulse"),cap=document.getElementById("flcap");
+  function tick(){
+    pulse.setAttribute("cx",xs[i]);cap.textContent=caps[i];
+    xs.forEach(function(_,k){var g=document.getElementById("fl-n"+k);if(g)g.style.opacity=(k===i?1:.45);});
+    i=(i+1)%xs.length;
+  }
+  tick();timers.push(setInterval(tick,1500));
+}
+function initBoard(){
+  var svg=document.getElementById("pbx"),txt=document.getElementById("pbtxt");
+  var cols=14,x0=60,dx=28;
+  var cells=[];
+  function cx(c){return x0+(c-1)*dx;}
+  var rowsTop=[40,62,84,106,128],rowsBot=[170,192,214,236,258];
+  var railP=[16,16],railN=[16,16];
+  function hole(x,y,grp){var r=document.createElementNS(NS,"circle");r.setAttribute("cx",x);r.setAttribute("cy",y);r.setAttribute("r",7);r.setAttribute("fill","#b9b196");r.setAttribute("data-g",grp);r.style.cursor="pointer";svg.appendChild(r);r.addEventListener("click",function(){sel(grp);});cells.push(r);}
+  var t=document.createElementNS(NS,"rect");t.setAttribute("x",30);t.setAttribute("y",144);t.setAttribute("width",440);t.setAttribute("height",12);t.setAttribute("fill","#e3dcc3");svg.appendChild(t);
+  for(var c=1;c<=cols;c++){
+    rowsTop.forEach(function(y){hole(cx(c),y,"T"+c);});
+    rowsBot.forEach(function(y){hole(cx(c),y,"B"+c);});
+  }
+  /* rieles */
+  var rp=document.createElementNS(NS,"text");rp.setAttribute("x",20);rp.setAttribute("y",25);rp.setAttribute("fill","#ee4b4b");rp.setAttribute("font-size",18);rp.textContent="+";svg.appendChild(rp);
+  var rn=document.createElementNS(NS,"text");rn.setAttribute("x",20);rn.setAttribute("y",290);rn.setAttribute("fill","#1b86c4");rn.setAttribute("font-size",18);rn.textContent="−";svg.appendChild(rn);
+  for(var c2=1;c2<=cols;c2++){hole(cx(c2),18,"RP");hole(cx(c2),282,"RN");}
+  function sel(g){
+    cells.forEach(function(h){var on=h.getAttribute("data-g")===g;h.setAttribute("fill",on?(g==="RP"?"#ee4b4b":g==="RN"?"#1b86c4":"#ff9d00"):"#b9b196");h.setAttribute("r",on?9:7);});
+    txt.innerHTML=g==="RP"?"🔴 Todo el <b>riel +</b> está conectado: aquí va el 5V.":g==="RN"?"🔵 Todo el <b>riel −</b> está conectado: aquí va la tierra (GND).":"🟠 Esos <b>5 agujeros</b> están conectados entre sí. ¡Pero no con los de las otras columnas ni con el otro lado del canal!";
+  }
+}
+function setSim(v){
+  var sc=document.getElementById("scene");
+  var g=function(n){return document.getElementById("hot-"+n);};
+  ["rojo","amarillo","verde"].forEach(function(n){var e=g(n);if(e)e.classList.remove("hot");});
+  var bw=document.getElementById("buzzwaves");if(bw)bw.setAttribute("opacity",0);
+  var rings=document.getElementById("micrings");if(rings)rings.classList.remove("listening");
+  if(v===null)return;
+  var level=v<40?"verde":v<70?"amarillo":"rojo";
+  var e=g(level);if(e)e.classList.add("hot");
+  if(level==="rojo"&&bw)bw.setAttribute("opacity",1);
+  if(rings&&v>10)rings.classList.add("listening");
+}
+function initSim(){
+  var n=document.getElementById("noise"),num=document.getElementById("simnum"),txt=document.getElementById("simtxt");
+  function upd(){var v=+n.value;num.textContent=v;
+    txt.innerHTML=v<40?"🟢 Todo tranquilo":v<70?"🟡 Está subiendo…":"🔴 ¡Bajen el volumen! 🔔";
+    setSim(v);}
+  n.addEventListener("input",upd);upd();
+  document.getElementById("buzz");
+}
+function initChart(){
+  var svg=document.getElementById("chart"),btn=document.getElementById("shout");
+  var W=600,H=220,base=26,ay=base*2.5,ry=base*4;
+  var data=[],boost=0;
+  svg.innerHTML="";
+  function line(y,color,txt){var l=document.createElementNS(NS,"line");l.setAttribute("x1",0);l.setAttribute("x2",W);l.setAttribute("y1",H-y*1.5);l.setAttribute("y2",H-y*1.5);l.setAttribute("stroke",color);l.setAttribute("stroke-width",2);l.setAttribute("stroke-dasharray","6 6");svg.appendChild(l);var t=document.createElementNS(NS,"text");t.setAttribute("x",8);t.setAttribute("y",H-y*1.5-6);t.setAttribute("fill",color);t.setAttribute("font-size",14);t.textContent=txt;svg.appendChild(t);}
+  line(ry,"#ff7070","línea roja (4 × ruido normal)");line(ay,"#ffd34d","línea amarilla (2,5 ×)");line(base,"#7bf0ae","ruido normal");
+  var poly=document.createElementNS(NS,"polyline");poly.setAttribute("fill","none");poly.setAttribute("stroke","#fff");poly.setAttribute("stroke-width",3);svg.appendChild(poly);
+  var dot=document.createElementNS(NS,"circle");dot.setAttribute("r",9);dot.setAttribute("cx",W-10);svg.appendChild(dot);
+  for(var i=0;i<60;i++)data.push(base);
+  btn.addEventListener("click",function(){boost=14;});
+  timers.push(setInterval(function(){
+    var v=base+Math.random()*8-3+(boost>0?base*3.4:0);
+    if(boost>0)boost--;
+    data.push(v);data.shift();
+    poly.setAttribute("points",data.map(function(d,i){return (i*W/59).toFixed(1)+","+(H-d*1.5).toFixed(1);}).join(" "));
+    var last=data[data.length-1];
+    dot.setAttribute("cy",H-last*1.5);
+    dot.setAttribute("fill",last>=ry?"#ee4b4b":last>=ay?"#ffc928":"#2fbf71");
+  },110));
+}
+
+/* ---------- chat Ayudín ---------- */
+function initChat(){
+  var bubble=document.getElementById("chatBubble"),panel=document.getElementById("chatPanel"),close=document.getElementById("chatClose");
+  var form=document.getElementById("chatForm"),input=document.getElementById("chatInput"),send=document.getElementById("chatSend");
+  var log=document.getElementById("chatMessages"),status=document.getElementById("chatStatus"),messages=[];
+  var session;
+  try{session=localStorage.getItem("ayudin-session");if(!session){session="s-"+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem("ayudin-session",session);}}catch(e){session="sin-storage";}
+  function toggle(force){var open=typeof force==="boolean"?force:!panel.classList.contains("open");panel.classList.toggle("open",open);bubble.setAttribute("aria-expanded",String(open));if(open)setTimeout(function(){input.focus();},50);}
+  function add(role,text,extra){var div=document.createElement("div");div.className="chat-msg "+role+(extra?" "+extra:"");div.textContent=text;log.appendChild(div);log.scrollTop=log.scrollHeight;return div;}
+  async function ask(text){
+    text=String(text||"").trim();if(!text)return;
+    messages.push({role:"user",content:text});messages=messages.slice(-8);add("user",text);input.value="";send.disabled=true;status.textContent="Ayudín está pensando…";
+    var answer=add("bot","…");
+    try{
+      var apiUrl=(location.hostname==="alanbendov-spec.github.io"||location.protocol==="file:")?"https://medidor-de-gritos.vercel.app/api/chat":"/api/chat";
+      var response=await fetch(apiUrl,{method:"POST",headers:{"content-type":"application/json","x-chat-session":session},body:JSON.stringify({messages:messages,step:STEPS[cur].title})});
+      if(!response.ok){var detail;try{detail=(await response.json()).error;}catch(e){}throw new Error(detail||"No pude conectarme con Ayudín.");}
+      if(!response.body)throw new Error("Este navegador no pudo abrir la respuesta.");
+      var reader=response.body.getReader(),decoder=new TextDecoder(),full="";answer.textContent="";
+      while(true){var part=await reader.read();if(part.done)break;full+=decoder.decode(part.value,{stream:true});answer.textContent=full;log.scrollTop=log.scrollHeight;}
+      full+=decoder.decode();answer.textContent=full||"No alcancé a responder. ¿Probamos de nuevo?";messages.push({role:"assistant",content:answer.textContent});messages=messages.slice(-8);
+      status.textContent="Listo. Puedes hacer otra pregunta.";
+    }catch(error){answer.classList.add("error");answer.textContent="Ups: "+error.message;status.textContent="Revisa la conexión o espera un poquito.";}
+    finally{send.disabled=false;input.focus();}
+  }
+  bubble.addEventListener("click",function(){toggle();});close.addEventListener("click",function(){toggle(false);});
+  form.addEventListener("submit",function(event){event.preventDefault();ask(input.value);});
+  Array.prototype.forEach.call(panel.querySelectorAll(".chat-quick button"),function(b){b.addEventListener("click",function(){toggle(true);ask(b.textContent);});});
+  document.addEventListener("keydown",function(event){if(event.key==="Escape"&&panel.classList.contains("open"))toggle(false);});
+}
+
+/* arranque */
+document.getElementById("kitTab").addEventListener("click",function(){openKit();});
+document.getElementById("guideTab").addEventListener("click",function(){go(cur===1?0:cur);});
+initChat();
+var initial=location.hash.match(/^#componente-(.+)$/);
+if(initial){openKit(initial[1]);}else{go(0);}
+})();
+</script>
+</body>
+</html>
